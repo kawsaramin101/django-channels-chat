@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block head %}
+<title>Login</title>
+<style>
+</style>
+{% endblock head %}
+
+
+{% block content %}
+<h1>Login</h1>
+<form hx-post="{% url 'users:login' %}" hx-target="#login_error" hx-swap="innerHTML">
+
+    {% csrf_token %}
+    <div>
+        <label for="username">Username</label>
+        <input name="username" type="text" id="username" placeholder="e.g. John" required>
+    </div>
+    <div>
+        <label for="password">Password</label>
+        <input name="password" type="password" id="password" placeholder="Password" required>
+    </div>
+
+    <input type="hidden" name="next" value="{{ request.GET.next }}" />
+
+    <p id="login_error"></p>
+
+    <div class="buttons is-centered">
+        <button id="submitbtn" type="submit">
+            Login
+        </button>
+    </div>
+    <p>
+        Don't have an account? <a href="{% url 'users:signup' %}">Sign up</a>
+    </p>
+</form>
+{% endblock content %}
+{% block script %}
+<script>
+    document.body.addEventListener('htmx:beforeRequest', function(evt) {
+        document.querySelector("#login_error").innerText = "";
+        document.querySelector("#submitbtn").classList.add("is-loading");
+    });
+    document.body.addEventListener('htmx:beforeSwap', function(evt) {
+        document.querySelector("#submitbtn").classList.remove("is-loading");
+    });
+</script>
+{% endblock script %}
