@@ -24,11 +24,8 @@ class InboxConsumer(AsyncWebsocketConsumer):
         if self.user.is_authenticated and self.user in self.inbox.participants.all():
             await self.channel_layer.group_add(self.inbox_group_id, self.channel_name)
             await self.accept()
-            print("acceptet")
         else:
             await self.close()
-            print("rejected")
-        
         
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(self.inbox_group_id, self.channel_name)
@@ -56,28 +53,12 @@ class InboxConsumer(AsyncWebsocketConsumer):
         }
         rendered_message = await sync_to_async(render_to_string)('chat/partials/message-partial.html', context)
         
-        await self.send(text_data=json.dumps({"action": "add_message", "rendered_message": rendered_message}))
-
-            
-    async def add_score(self, event):
-        data = event.get("data")
-        team_score = await TeamScore.objects.acreate(match=self.match, team_id=data["team"], player=data["player"], time=data["time"])
-        
-        match = await sync_to_async(Match.objects.prefetch_related("scores").get)(secondary_id=self.match_id)
-        team_one = await match.teams.afirst()
-        team_two = await match.teams.exclude(id=team_one.id).afirst()
-    
-        
-        print(match, team_one, team_two)
-        
-        context = {
-            "match": match,
-            "team_one": team_one,
-            "team_two": team_two,
-        }
-        rendered_score = await sync_to_async(render_to_string)('livefeed/partials/score-partial.html', context)
-        
-        await self.send(text_data=json.dumps({"action": "update_score", "rendered_html": rendered_score}))
+        await self.send(text_data=json.dumps({
+            "action": "add_message", 
+            "rendered_message": rendered_message, 
+            "sender_secondary_id": str(message.sender.secondary_id), 
+            "message_secondary_id": str(message.secondary_id), 
+        }))
 
         
 

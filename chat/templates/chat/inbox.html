@@ -18,7 +18,7 @@
         flex-direction: column;
     }
     .chatbox {
-      /*  max-height: 400px;*/
+        max-height: 100%;
         position: fixed;
         bottom: 0;
         display: flex;
@@ -29,6 +29,7 @@
         flex: auto;
         background: #2f323b;
         padding: 0 10px 0 10px;
+        overflow: auto;
     }
     .chat-input {
         flex: 0 0 auto;
@@ -84,6 +85,7 @@
         padding: 10px 10px 0 10px;
         border-radius: 6px;
         max-width: 80%;
+        min-width: 40%;
         width: auto;
         float: left;
         box-shadow: 0 0 2px rgba(0,0,0,.12),0 2px 4px rgba(0,0,0,.24);
@@ -120,14 +122,14 @@
         font-size: 8pt;
         margin-bottom: 10px;
     }
-    .username {
+    .status {
         margin-right: 3px;
     }
     .posttime {
         margin-left: 3px;
     }
     .msg-self .msg-box {
-        margin: 0 0px 10px 0px;
+        margin: 0 0 10px 0;
         border-radius: 6px;
         background: #2671ff;
         float: right;
@@ -159,14 +161,14 @@
                             {{message.text}}
                         </p>
                     </div>
-                    <span class="timestamp"><span class="username">Name</span>&bull;<span class="posttime">3 minutes ago</span></span>
+                    <span class="timestamp"><span class="status" id="status-{{message.secondary_id}}"></span>&bull;<span class="posttime">3 minutes ago</span></span>
                 </div>
             </div>
         </article>
         {% endfor %}
 
     </section>
-
+    <div id="last-element"></div>
     <form class="chat-input" id="messageForm">
         <input type="text" name="text" autocomplete="off" placeholder="Type a message" />
         <button>
@@ -175,11 +177,17 @@
     </form>
 </section>
 {{ inbox.secondary_id|json_script:"inbox_secondary_id" }}
-
+{{ user.secondary_id|json_script:"user_secondary_id" }}
 {% endblock content %}
 
 {% block script %}
 <script>
+    document.querySelector("#last-element").scrollIntoView();
+</script>
+
+<script type="module">
+    import { v4 as uuidv4 } from 'https://jspm.dev/uuid';
+    
     const inboxSecondaryID = JSON.parse(document.getElementById('inbox_secondary_id').textContent);
     const url = `ws://${window.location.host}/ws/inbox/${inboxSecondaryID}/`;
     
@@ -202,16 +210,54 @@
         
         chatSocket.send(JSON.stringify({
             'action': "send_message",
-            'data': formProps
+            'data': formProps,
         }));
+        
+        const messages = document.querySelector("#messages");
+        
+        formProps.clientUUID = uuidv4();
+        
+        const storedMessages = localStorage.getItem("messages");
+        
+        if (storedMessages !== null) 
+        
     })
+    
+    function messageSelfFragement(message, time) {
+        return `
+            <article class="msg-container msg-self" id="msg-0">
+                <div class="msg-box">
+                    <div class="flr">
+                        <div class="messages">
+                            <p class="msg" id="msg-0">
+                                ${message}
+                            </p>
+                        </div>
+                        <span class="timestamp"><span class="status"></span>&bull;<span class="posttime">${time}</span></span>
+                    </div>
+                </div>
+            </article>
+        `
+    }
+    
+    function getCurrentTime() {
+        return new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    }
+    
+    const userSecondaryID = JSON.parse(document.querySelector('#user_secondary_id').textContent);
     
     chatSocket.onmessage = function(e) {
         const data = JSON.parse(e.data);
         console.log(data);
         
         if (data.action === "add_message") {
-            document.querySelector("#messages").insertAdjacentHTML("beforeend", data.rendered_message);
+            const messages = document.querySelector("#messages");
+            messages.insertAdjacentHTML("beforeend", data.rendered_message);
+            
+            if (data.sender_secondary_id === userSecondaryID) {
+                const status = document.querySelector(`#status-${data.message_secondary_id}`);
+                status.innerText = "sent";
+            } 
         }
         
     };
